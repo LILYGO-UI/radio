@@ -1,0 +1,55 @@
+schema_version = 1
+
+[project]
+package = "lilygo-ui-radio"
+version = "0.1.0"
+app_id = "cc.lilygo.ui.Radio"
+title = "Radio"
+summary = "Discover and play stations from Radio Browser"
+description = "An iOS-inspired internet radio player for LILYGO UI. Browse and search Radio Browser stations, keep listening while discovering more, or play a saved custom HTTP/HTTPS audio stream."
+license = "MIT"
+source_repo = "https://github.com/LILYGO-UI/lilygo-ui-radio"
+homepage = "https://github.com/LILYGO-UI/lilygo-ui-radio"
+categories = ["Multimedia", "Network"]
+
+[[project.authors]]
+name = "lbuque"
+email = "110239031@qq.com"
+
+[project.assets]
+icon = "assets/app-icon-radio.png"
+
+[[project.assets.screenshots]]
+path = "assets/previews/radio-main.png"
+caption = "Radio Browser discovery and playback"
+
+[[project.assets.screenshots]]
+path = "assets/previews/radio-search.png"
+caption = "Find a radio station"
+
+[[project.permissions]]
+id = "network"
+reason = "Access online application data"
+
+[[project.permissions]]
+id = "filesystem"
+access = "read-write"
+scope = "app-data"
+reason = "Save custom audio stream URLs"
+
+[project.compatibility]
+architectures = ["arm64"]
+min_appkit_version = "0.1.0"
+
+[project.launcher]
+order = 90
+
+[build]
+host_preset = "host-simulator"
+cross_preset = "cm0-cross"
+package_dir = "dist"
+
+[deploy]
+host = "raspberrypi.local"
+user = "pi"
+port = 22
