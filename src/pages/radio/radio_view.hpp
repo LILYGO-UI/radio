@@ -139,7 +139,7 @@ private:
     ArtworkView current_artwork_;
     std::vector<ArtworkView> station_artworks_;
     std::vector<lv_obj_t *> station_favorites_;
-    int active_tab_ = 1;
+    int active_tab_ = 0;
     bool favorites_visible_ = false;
     int favorites_revision_ = -1;
     InputDialog url_dialog_;

@@ -264,6 +264,32 @@ lv_area_t bounds(lv_obj_t *object)
     return area;
 }
 
+void assert_full_width(lv_obj_t *object)
+{
+    const auto actual = bounds(object);
+    const auto parent = bounds(lv_obj_get_parent(object));
+    // Flex layout can reserve the one-pixel column gap when the surface crosses
+    // the responsive breakpoint; the panel must still span the full content area.
+    assert(actual.x1 == parent.x1 && actual.x2 >= parent.x2 - 1);
+}
+
+void assert_station_list_at_top(lv_obj_t *root)
+{
+    auto *list = named(root, "radio_station_list");
+    lv_obj_update_layout(list);
+    assert(lv_obj_get_scroll_y(list) == 0);
+}
+
+void scroll_station_list_to_bottom(lv_obj_t *root)
+{
+    auto *list = named(root, "radio_station_list");
+    lv_obj_update_layout(list);
+    const int bottom = lv_obj_get_scroll_bottom(list);
+    if (bottom <= 0) return;
+    lv_obj_scroll_to_y(list, bottom, LV_ANIM_OFF);
+    assert(lv_obj_get_scroll_y(list) == bottom);
+}
+
 void click_search_key(lv_obj_t *root, RadioViewModel &model, const char *text)
 {
     auto *keyboard = named(root, "radio_search_keyboard");
@@ -357,16 +383,28 @@ void exercise_favorites(lv_obj_t *root, RadioViewModel &model, RenderPlayer &pla
     assert(player.last_url == "https://example.com/groove");
     assert(model.playback_state() == StreamPlaybackState::Playing);
     assert(lv_obj_is_visible(named(root, "radio_player_panel")));
+    assert(!lv_obj_is_visible(named(root, "radio_station_panel")));
     click(root, model, "radio_favorite");
     assert(model.current_is_favorite());
     click(root, model, "radio_stop");
     assert(model.playback_state() == StreamPlaybackState::Stopped);
     click(root, model, "radio_tab_favorites");
+    assert_station_list_at_top(root);
     assert(lv_obj_is_visible(named(root, "radio_station_panel")));
+    assert(!lv_obj_is_visible(named(root, "radio_player_panel")));
+    assert(lv_obj_is_visible(named(root, "radio_mini_player")));
+    assert_full_width(named(root, "radio_station_panel"));
     assert(model.favorites().size() == 1);
     click(root, model, "radio_station_0");
     assert(model.current_name() == "Groove Salad");
+    assert(lv_obj_is_visible(named(root, "radio_player_panel")));
+    assert(!lv_obj_is_visible(named(root, "radio_station_panel")));
+    assert(!lv_obj_is_visible(named(root, "radio_mini_player")));
     click(root, model, "radio_tab_favorites");
+    assert_station_list_at_top(root);
+    assert(!lv_obj_is_visible(named(root, "radio_player_panel")));
+    assert(lv_obj_is_visible(named(root, "radio_mini_player")));
+    assert_full_width(named(root, "radio_station_panel"));
     click(root, model, "radio_favorite_0");
     assert(model.favorites().empty());
     assert(model.playback_state() == StreamPlaybackState::Playing);
@@ -549,28 +587,43 @@ int main(int argc, char **argv)
         assert(!lv_obj_find_by_name(root, "radio_search_dialog"));
         assert(std::string(lv_label_get_text(named(root, "radio_now_title"))) == "Select a station");
         assert(std::string(lv_label_get_text(named(root, "radio_status"))) == "Ready");
-        assert(lv_obj_is_visible(named(root, "radio_station_panel")));
-        if (width < 800) {
-            assert(!lv_obj_is_visible(named(root, "radio_player_panel")));
-            assert(!lv_obj_is_visible(named(root, "radio_mini_player")));
-        }
+        assert(lv_obj_has_state(named(root, "radio_tab_playing"), LV_STATE_CHECKED));
+        assert(lv_obj_is_visible(named(root, "radio_player_panel")));
+        assert(!lv_obj_is_visible(named(root, "radio_station_panel")));
+        assert(!lv_obj_is_visible(named(root, "radio_mini_player")));
         check_layout(root, width, height);
+        click(root, model, "radio_tab_stations");
+        assert_station_list_at_top(root);
+        assert(lv_obj_is_visible(named(root, "radio_station_panel")));
+        assert_full_width(named(root, "radio_station_panel"));
+        scroll_station_list_to_bottom(root);
+        click(root, model, "radio_tab_playing");
+        click(root, model, "radio_tab_stations");
+        assert_station_list_at_top(root);
         exercise_favorites(root, model, player);
         check_layout(root, width, height);
         exercise_sleep(root, model, now);
         exercise_settings(root, model, now, width, height);
 
         click(root, model, "radio_tab_stations");
-        if (width < 800) {
-            assert(!lv_obj_is_visible(named(root, "radio_player_panel")));
-            assert(lv_obj_is_visible(named(root, "radio_mini_player")));
-            assert(std::string(lv_label_get_text(named(root, "radio_mini_title"))) == "Groove Salad");
-            click(root, model, "radio_mini_play_pause");
-            assert(model.playback_state() == StreamPlaybackState::Paused);
-            click(root, model, "radio_mini_play_pause");
-            assert(model.playback_state() == StreamPlaybackState::Playing);
-            assert(lv_obj_is_visible(named(root, "radio_station_panel")));
-        }
+        assert(!lv_obj_is_visible(named(root, "radio_player_panel")));
+        assert(lv_obj_is_visible(named(root, "radio_station_panel")));
+        assert(lv_obj_is_visible(named(root, "radio_mini_player")));
+        assert(std::string(lv_label_get_text(named(root, "radio_mini_title"))) == "Groove Salad");
+        assert_full_width(named(root, "radio_station_panel"));
+        click(root, model, "radio_mini_play_pause");
+        assert(model.playback_state() == StreamPlaybackState::Paused);
+        click(root, model, "radio_mini_play_pause");
+        assert(model.playback_state() == StreamPlaybackState::Playing);
+        click(root, model, "radio_tab_playing");
+        assert(lv_obj_is_visible(named(root, "radio_player_panel")));
+        assert(!lv_obj_is_visible(named(root, "radio_mini_player")));
+        assert(!lv_obj_is_visible(named(root, "radio_station_panel")));
+        click(root, model, "radio_tab_stations");
+        assert(!lv_obj_is_visible(named(root, "radio_player_panel")));
+        assert(lv_obj_is_visible(named(root, "radio_station_panel")));
+        assert(lv_obj_is_visible(named(root, "radio_mini_player")));
+        assert_full_width(named(root, "radio_station_panel"));
         check_layout(root, width, height);
 
         auto *body = lv_obj_get_parent(named(root, "radio_station_panel"));
@@ -599,12 +652,18 @@ int main(int argc, char **argv)
         assert(std::string(lv_textarea_get_text(search_input)) == "Jazz");
         check_search_layout_unchanged();
         if (width >= 800) {
+            click(root, model, "radio_tab_playing");
+            assert(lv_obj_is_visible(named(root, "radio_player_panel")));
             click(root, model, "radio_sleep");
             assert(!lv_obj_is_visible(named(root, "radio_search_keyboard")));
             assert(!lv_obj_has_state(search_input, LV_STATE_FOCUSED));
             assert(lv_obj_is_visible(named(root, "radio_sleep_overlay")));
             click(root, model, "radio_sleep_close");
             assert(std::string(lv_textarea_get_text(search_input)) == "Jazz");
+            click(root, model, "radio_tab_stations");
+            assert(!lv_obj_is_visible(named(root, "radio_player_panel")));
+            assert(lv_obj_is_visible(named(root, "radio_mini_player")));
+            assert_full_width(named(root, "radio_station_panel"));
         }
         click(root, model, "radio_tab_settings");
         assert(!lv_obj_is_visible(named(root, "radio_search_keyboard")));
@@ -620,11 +679,19 @@ int main(int argc, char **argv)
             assert(std::string(lv_textarea_get_text(search_input)) == "Jazz");
             assert(lv_obj_is_visible(named(root, "radio_search_keyboard")));
             assert(lv_obj_has_state(search_input, LV_STATE_FOCUSED));
+            assert(!lv_obj_is_visible(named(root, "radio_player_panel")));
+            assert(lv_obj_is_visible(named(root, "radio_station_panel")));
+            assert(lv_obj_is_visible(named(root, "radio_mini_player")));
+            assert_full_width(named(root, "radio_station_panel"));
             check_keyboard_alignment(root);
             lv_obj_set_size(surface, surface_width, surface_height);
             lv_obj_update_layout(root);
             check_keyboard_alignment(root);
             check_search_layout_unchanged();
+            assert(!lv_obj_is_visible(named(root, "radio_player_panel")));
+            assert(lv_obj_is_visible(named(root, "radio_station_panel")));
+            assert(lv_obj_is_visible(named(root, "radio_mini_player")));
+            assert_full_width(named(root, "radio_station_panel"));
         } else {
             if (scenario == "empty") directory.next = {};
             else if (scenario == "error") directory.next = {{}, "Unable to reach Radio Browser. Check your network and try again.", false};

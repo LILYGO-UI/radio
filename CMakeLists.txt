@@ -100,6 +100,15 @@ if(BUILD_TESTING AND NOT CMAKE_CROSSCOMPILING)
     add_test(NAME radio-view-model COMMAND radio-view-model-tests)
 
     if(CM0_SIMULATOR)
+        find_package(Python3 REQUIRED COMPONENTS Interpreter)
+        foreach(orientation IN ITEMS portrait landscape)
+            add_test(NAME radio-runtime-${orientation}
+                COMMAND ${Python3_EXECUTABLE}
+                    ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_runtime_startup.py
+                    $<TARGET_FILE:lilygo_ui_radio> ${orientation})
+            set_tests_properties(radio-runtime-${orientation} PROPERTIES TIMEOUT 15)
+        endforeach()
+
         add_executable(radio-host-input-tests tests/test_host_input.cpp)
         target_compile_options(radio-host-input-tests PRIVATE
             -Wall -Wextra -Wpedantic -UNDEBUG)

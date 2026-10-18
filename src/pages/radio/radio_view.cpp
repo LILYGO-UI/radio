@@ -2,6 +2,7 @@
 
 #include "components/components.hpp"
 
+#include <cm0/input.h>
 #include <cm0/typography.h>
 #include <src/misc/cache/instance/lv_image_cache.h>
 
@@ -162,7 +163,7 @@ lv_obj_t *RadioView::create(lv_obj_t *parent, const char *)
     apply_layout();
     refresh_directory();
     refresh_controls();
-    select_tab(1);
+    select_tab(0);
     return surface_;
 }
 
@@ -192,7 +193,7 @@ void RadioView::destroy() noexcept
         mini_title_ = mini_icon_ = station_heading_ = search_row_ = directory_row_ = tooltip_ = nullptr;
     artwork_top_space_ = artwork_bottom_space_ = nullptr;
     tabs_ = {};
-    active_tab_ = 1;
+    active_tab_ = 0;
     favorites_visible_ = false;
     favorites_revision_ = -1;
     stations_revision_ = -1;
@@ -503,11 +504,12 @@ void RadioView::mini_player_event(lv_event_t *event)
 void RadioView::select_tab(int tab)
 {
     hide_search_keyboard();
+    const bool station_tab = tab == 1 || tab == 2;
+    const bool entering_station_tab = station_tab && active_tab_ != tab;
     active_tab_ = tab;
-    if ((tab == 1 || tab == 2) && favorites_visible_ != (tab == 2)) {
+    if (station_tab && favorites_visible_ != (tab == 2)) {
         favorites_visible_ = tab == 2;
         stations_revision_ = -1;
-        lv_obj_scroll_to_y(station_list_, 0, LV_ANIM_OFF);
     }
     for (std::size_t i = 0; i < tabs_.size(); ++i) {
         const auto color = lv_color_hex(static_cast<int>(i) == tab ? components::color_action : components::color_muted_text);
@@ -518,6 +520,12 @@ void RadioView::select_tab(int tab)
     refresh_directory();
     refresh_controls();
     refresh_artworks();
+    // Each station page starts at its first row. Keep the list position while
+    // refreshing in place, but reset it when returning from another page.
+    if (entering_station_tab && station_list_) {
+        lv_obj_update_layout(station_list_);
+        lv_obj_scroll_to_y(station_list_, 0, LV_ANIM_OFF);
+    }
 }
 
 void RadioView::favorite_event(lv_event_t *event)
@@ -544,6 +552,7 @@ void RadioView::row_favorite_event(lv_event_t *event)
 void RadioView::create_sleep_dialog()
 {
     sleep_overlay_ = lv_obj_create(surface_);
+    cm0_input_set_focus_scope(sleep_overlay_);
     lv_obj_set_name_static(sleep_overlay_, "radio_sleep_overlay");
     make_plain(sleep_overlay_);
     lv_obj_add_flag(sleep_overlay_, LV_OBJ_FLAG_FLOATING);
@@ -914,6 +923,7 @@ lv_obj_t *RadioView::create_station_row(lv_obj_t *parent, const RadioStation &st
 void RadioView::create_input_dialog(InputDialog &dialog)
 {
     dialog.overlay = lv_obj_create(surface_);
+    cm0_input_set_focus_scope(dialog.overlay);
     lv_obj_set_name_static(dialog.overlay, "radio_url_overlay");
     lv_obj_add_flag(dialog.overlay, LV_OBJ_FLAG_FLOATING);
     lv_obj_add_flag(dialog.overlay, LV_OBJ_FLAG_HIDDEN);
@@ -1145,9 +1155,7 @@ void RadioView::refresh_controls() noexcept
     lv_label_set_text(settings_sleep_status_, remaining.c_str());
     lv_obj_set_state(sleep_button_, LV_STATE_CHECKED, sleep_active);
     set_disabled(sleep_cancel_, !sleep_active);
-    const bool wide = lv_obj_get_content_width(surface_) >= 800;
-    lv_obj_set_flag(mini_player_, LV_OBJ_FLAG_HIDDEN,
-                    (wide && active_tab_ != 3) || active_tab_ == 0 || !view_model_.has_selection());
+    lv_obj_set_flag(mini_player_, LV_OBJ_FLAG_HIDDEN, active_tab_ == 0 || !view_model_.has_selection());
     const auto &stations = visible_stations();
     for (std::size_t index = 0; index < station_rows_.size() && index < stations.size(); ++index) {
         const bool selected = view_model_.is_current_station(stations[index]);
@@ -1175,13 +1183,12 @@ void RadioView::apply_layout() noexcept
     lv_obj_set_flex_flow(body_, wide ? LV_FLEX_FLOW_ROW : LV_FLEX_FLOW_COLUMN);
     lv_obj_remove_flag(body_, LV_OBJ_FLAG_SCROLLABLE);
     lv_obj_set_flex_grow(player_panel_, 0);
-    lv_obj_set_flag(player_panel_, LV_OBJ_FLAG_HIDDEN, settings || (!wide && active_tab_ != 0));
-    lv_obj_set_flag(station_panel_, LV_OBJ_FLAG_HIDDEN, settings || (!wide && active_tab_ == 0));
+    lv_obj_set_flag(player_panel_, LV_OBJ_FLAG_HIDDEN, active_tab_ != 0);
+    lv_obj_set_flag(station_panel_, LV_OBJ_FLAG_HIDDEN, settings || active_tab_ == 0);
     lv_obj_set_flag(settings_panel_, LV_OBJ_FLAG_HIDDEN, !settings);
-    lv_obj_set_flag(mini_player_, LV_OBJ_FLAG_HIDDEN,
-                    (wide && !settings) || active_tab_ == 0 || !view_model_.has_selection());
+    lv_obj_set_flag(mini_player_, LV_OBJ_FLAG_HIDDEN, active_tab_ == 0 || !view_model_.has_selection());
     if (wide) {
-        lv_obj_set_size(player_panel_, std::clamp(width / 3, 320, 440), LV_PCT(100));
+        lv_obj_set_size(player_panel_, active_tab_ == 0 ? LV_PCT(100) : std::clamp(width / 3, 320, 440), LV_PCT(100));
         lv_obj_set_size(station_panel_, 0, LV_PCT(100));
         lv_obj_set_flex_grow(station_panel_, 1);
     } else {

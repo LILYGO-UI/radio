@@ -33,7 +33,8 @@ Previews use fixed test stations and AppKit system bars. See the
 - **Station artwork:** download station logos in the background, reuse a local
   original-image cache, and display a default icon when artwork is unavailable.
 - **Responsive interface:** Playing, Stations, Favorites, and Settings tabs;
-  a portrait mini player and landscape player/list layout; an on-screen keyboard
+  a full player on the Playing tab and a mini player on other tabs when a station
+  is selected; an on-screen keyboard
   and desktop keyboard input, including Chinese IME commits and clipboard operations.
 - **Failure handling:** loading, empty, and error states, directory server fallback,
   and four built-in SomaFM stations available before a successful directory load.
@@ -205,13 +206,17 @@ lpm test
 | `radio-artwork` | Image decoding, download limits, memory/disk cache behavior, and cancellation |
 | `radio-view-model` | Playback commands, directory pagination, selection preservation, sleep timer, and Subject updates |
 | `radio-host-input` | Desktop text input, IME commits, selection, clipboard, and keyboard events |
+| `radio-runtime-{portrait,landscape}` | Full application startup, repeated keyboard focus maintenance, directory replacement, and clean shutdown with SDL dummy drivers |
 | `radio-render-{portrait,landscape,mobile,compact}*` | Rendering and interactions at `568 x 1232`, `1232 x 568`, `390 x 844`, and `320 x 568` |
 
-The host preset registers 45 tests: five behavior/input tests and 40 render tests.
+The host preset registers 47 tests: five behavior/input tests, two full-runtime
+tests, and 40 render tests.
 Each viewport covers the player, custom-stream dialog, search, empty results,
 directory error, stations, favorites, settings, sleep timer, and artwork.
 Tests use fixed directory responses and controlled subprocess fixtures;
 they do not require external radio services or verify live audio output.
+Runtime tests keep the application alive for at least one second after its first
+frame, covering the input and directory polling timers that render tests bypass.
 
 Render tests write `radio-<viewport>[-<scenario>].ppm` under
 `build/host-simulator`. Inspect the affected scenarios in all four viewports after
@@ -292,6 +297,7 @@ cpack --config build/cm0-cross/CPackConfig.cmake -B dist
 | [Services and cache](docs/02-services-and-cache.md) | Directory and playback services, environment variables, configuration, favorites, and artwork cache |
 | [Architecture overview](docs/00-overview.md) (Chinese) | Module boundaries, data flow, asynchronous work, and resource lifetimes |
 | [UI development guidelines](docs/01-user-interface.md) (Chinese) | Navigation, layout, typography, desktop input, UI validation, and previews |
+| [Startup crash investigation](docs/03-startup-crash.md) (Chinese) | Hardware keyboard focus fix, full-runtime regression tests, and device validation |
 
 ## Acknowledgments
 
