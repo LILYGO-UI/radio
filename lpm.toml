@@ -2,7 +2,7 @@ schema_version = 1
 
 [project]
 package = "lilygo-ui-radio"
-version = "0.1.1"
+version = "0.1.2"
 app_id = "cc.lilygo.ui.Radio"
 title = "Radio"
 summary = "Discover and play stations from Radio Browser"
